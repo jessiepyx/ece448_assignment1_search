@@ -16,6 +16,7 @@ files and classes when code is run, so be careful to not modify anything else.
 from collections import deque
 from heapq import *
 
+
 # Search should return the path.
 # The path should be a list of tuples in the form (row, col) that correspond
 # to the positions of the path taken by your search algorithm.
@@ -103,6 +104,7 @@ def astar(maze):
     path.reverse()
     return path
 
+
 def astar_corner(maze):
     """
     Runs A star for part 2 of the assignment in the case where there are four corner objectives.
@@ -113,6 +115,7 @@ def astar_corner(maze):
         """
     # TODO: Write your code here
     return []
+
 
 def astar_multi(maze):
     """
