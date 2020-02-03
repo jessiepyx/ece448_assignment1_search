@@ -14,6 +14,7 @@ files and classes when code is run, so be careful to not modify anything else.
 """
 
 from collections import deque
+from heapq import *
 
 # Search should return the path.
 # The path should be a list of tuples in the form (row, col) that correspond
@@ -43,18 +44,13 @@ def bfs(maze):
     path = []
     start = maze.getStart()
     cur = start
-    targets = len(maze.getObjectives())
-    reached_targets = 0
     frontier = deque()
     frontier.append(cur)
     visited = set(cur)
     while len(frontier) > 0:
         cur = frontier.popleft()
-        print(cur)
         if maze.isObjective(cur[0], cur[1]):
-            reached_targets += 1
-            if targets == reached_targets:
-                break
+            break
         neighbors = maze.getNeighbors(cur[0], cur[1])
         for i in neighbors:
             if i not in visited:
@@ -77,8 +73,35 @@ def astar(maze):
 
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
-    # TODO: Write your code here
-    return []
+    parent = dict()
+    path = []
+    start = maze.getStart()
+    cur = start
+    target = maze.getObjectives()[0]
+    g = dict()
+    g[cur] = 0
+    h = abs(cur[0] - target[0]) + abs(cur[1] - target[1])
+    frontier = []
+    heappush(frontier, (g[cur] + h, cur))
+    visited = set(cur)
+    while len(frontier) > 0:
+        f, cur = heappop(frontier)
+        if maze.isObjective(cur[0], cur[1]):
+            break
+        neighbors = maze.getNeighbors(cur[0], cur[1])
+        for i in neighbors:
+            if i not in visited:
+                parent[i] = cur
+                g[i] = g[cur] + 1
+                h = abs(i[0] - target[0]) + abs(i[1] - target[1])
+                heappush(frontier, (g[i] + h, i))
+                visited.add(i)
+    while cur != start:
+        path.append(cur)
+        cur = parent[cur]
+    path.append(cur)
+    path.reverse()
+    return path
 
 def astar_corner(maze):
     """
