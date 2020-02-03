@@ -12,6 +12,9 @@ This is the main entry point for MP1. You should only modify code
 within this file -- the unrevised staff files will be used for all other
 files and classes when code is run, so be careful to not modify anything else.
 """
+
+from collections import deque
+
 # Search should return the path.
 # The path should be a list of tuples in the form (row, col) that correspond
 # to the positions of the path taken by your search algorithm.
@@ -36,8 +39,34 @@ def bfs(maze):
 
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
-    # TODO: Write your code here
-    return []
+    parent = dict()
+    path = []
+    start = maze.getStart()
+    cur = start
+    targets = len(maze.getObjectives())
+    reached_targets = 0
+    frontier = deque()
+    frontier.append(cur)
+    visited = set(cur)
+    while len(frontier) > 0:
+        cur = frontier.popleft()
+        print(cur)
+        if maze.isObjective(cur[0], cur[1]):
+            reached_targets += 1
+            if targets == reached_targets:
+                break
+        neighbors = maze.getNeighbors(cur[0], cur[1])
+        for i in neighbors:
+            if i not in visited:
+                parent[i] = cur
+                frontier.append(i)
+                visited.add(i)
+    while cur != start:
+        path.append(cur)
+        cur = parent[cur]
+    path.append(cur)
+    path.reverse()
+    return path
 
 
 def astar(maze):
