@@ -41,29 +41,37 @@ def bfs(maze):
 
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
-    parent = dict()
-    path = []
+    # Single or multiple objectives
+    objs = maze.getObjectives()
     start = maze.getStart()
     cur = start
-    frontier = deque()
-    frontier.append(cur)
-    visited = set()
-    visited.add(cur)
-    while len(frontier) > 0:
-        cur = frontier.popleft()
-        if maze.isObjective(cur[0], cur[1]):
-            break
-        neighbors = maze.getNeighbors(cur[0], cur[1])
-        for i in neighbors:
-            if i not in visited:
-                parent[i] = cur
-                frontier.append(i)
-                visited.add(i)
-    while cur != start:
-        path.append(cur)
-        cur = parent[cur]
-    path.append(cur)
-    path.reverse()
+    path = [start]
+    for j in range(len(objs)):
+        frontier = deque()
+        frontier.append(start)
+        visited = set()
+        visited.add(start)
+        tmp_path = []
+        parent = dict()
+        while len(frontier) > 0:
+            cur = frontier.popleft()
+            if cur in objs:
+                objs.remove(cur)
+                break
+            neighbors = maze.getNeighbors(cur[0], cur[1])
+            for i in neighbors:
+                if i not in visited:
+                    parent[i] = cur
+                    frontier.append(i)
+                    visited.add(i)
+        tmp_start = cur
+        while cur != start:
+            tmp_path.append(cur)
+            cur = parent[cur]
+        tmp_path.reverse()
+        for p in tmp_path:
+            path.append(p)
+        start = tmp_start
     return path
 
 
@@ -75,6 +83,7 @@ def astar(maze):
 
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
+    # Single objective
     parent = dict()
     path = []
     start = maze.getStart()
@@ -82,23 +91,35 @@ def astar(maze):
     target = maze.getObjectives()[0]
     g = dict()
     g[cur] = 0
-    h = abs(cur[0] - target[0]) + abs(cur[1] - target[1])
+    h = dict()
+    h[cur] = abs(cur[0] - target[0]) + abs(cur[1] - target[1])
     frontier = []
-    heappush(frontier, (g[cur] + h, cur))
+    heappush(frontier, (g[cur] + h[cur], cur))
     visited = set()
-    visited.add(cur)
     while len(frontier) > 0:
         f, cur = heappop(frontier)
+        # if node is previously expanded, current cost must >= previous cost at this node
+        if cur in visited:
+            continue
+        # only treat expanded nodes (not nodes in heap) as visited, since nodes in heap can be updated
+        visited.add(cur)
         if maze.isObjective(cur[0], cur[1]):
             break
         neighbors = maze.getNeighbors(cur[0], cur[1])
         for i in neighbors:
+            # pushing expanded node to heap can lead to infinite loop
             if i not in visited:
-                parent[i] = cur
-                g[i] = g[cur] + 1
-                h = abs(i[0] - target[0]) + abs(i[1] - target[1])
-                heappush(frontier, (g[i] + h, i))
-                visited.add(i)
+                g_tmp = g[cur] + 1
+                if i not in [x[1] for x in frontier]:
+                    g[i] = g_tmp
+                    h[i] = abs(i[0] - target[0]) + abs(i[1] - target[1])
+                    heappush(frontier, (g[i] + h[i], i))
+                    parent[i] = cur
+                # can update node in frontier if distance is shorter
+                elif g_tmp < g[i]:
+                    g[i] = g_tmp
+                    heappush(frontier, (g[i] + h[i], i))
+                    parent[i] = cur
     while cur != start:
         path.append(cur)
         cur = parent[cur]
@@ -138,13 +159,18 @@ def astar_corner(maze):
     cur_state = init_state
     dist = dict()
     dist[init_state] = 0
-    heuristic = min([abs(pos[0] - objs[i][0]) + abs(pos[1] - objs[i][1]) for i in range(4)]) + h + w + h
+    heuristic = dict()
+    heuristic[init_state] = min([abs(pos[0] - objs[i][0]) + abs(pos[1] - objs[i][1]) for i in range(4)]) + h + w + h
     frontier = []
     heappush(frontier, (heuristic, init_state))
     explored = set()
-    explored.add(init_state)
     while len(frontier) > 0:
         f, cur_state = heappop(frontier)
+        # if node is previously expanded, current cost must >= previous cost at this node
+        if cur_state in explored:
+            continue
+        # only treat expanded nodes (not nodes in heap) as visited, since nodes in heap can be updated
+        explored.add(cur_state)
         pos = cur_state[0]
         objs_tuple = cur_state[1]
         objs = list(objs_tuple)
@@ -156,32 +182,40 @@ def astar_corner(maze):
         neighbors = maze.getNeighbors(pos[0], pos[1])
         for new_pos in neighbors:
             new_state = (new_pos, tuple(new_objs))
-            if new_state not in explored or dist[cur_state] + 1 < dist[new_state]:
-                parent[new_state] = cur_state
-                dist[new_state] = dist[cur_state] + 1
-                n = len(new_objs)
-                if n == 4:
-                    heuristic = dist[new_state] + min([abs(new_pos[0] - new_objs[i][0])
-                                                       + abs(new_pos[1] - new_objs[i][1])
-                                                       for i in range(4)]) + h + w + h
-                elif n == 3:
-                    # Exclude the middle corner
-                    end_corners = []
-                    unique_x = new_objs[0][0] ^ new_objs[1][0] ^ new_objs[2][0]
-                    unique_y = new_objs[0][1] ^ new_objs[1][1] ^ new_objs[2][1]
-                    for i in range(3):
-                        if new_objs[i][0] == unique_x or new_objs[i][1] == unique_y:
-                            end_corners.append(new_objs[i])
-                    heuristic = dist[new_state] + min([abs(new_pos[0] - end_corners[i][0])
-                                                       + abs(new_pos[1] - end_corners[i][1])
-                                                       for i in range(2)]) + h + w
-                elif n == 2:
-                    heuristic = dist[new_state] + min([abs(new_pos[0] - new_objs[i][0]) + abs(new_pos[1] - new_objs[i][1])
-                                                       for i in range(2)]) + w
-                else:
-                    heuristic = dist[new_state] + abs(new_pos[0] - new_objs[0][0]) + abs(new_pos[1] - new_objs[0][1])
-                heappush(frontier, (heuristic, new_state))
-                explored.add(new_state)
+            # pushing expanded node to heap can lead to infinite loop
+            if new_state not in explored:
+                dist_tmp = dist[cur_state] + 1
+                if new_state not in [x[1] for x in frontier]:
+                    dist[new_state] = dist_tmp
+                    n = len(new_objs)
+                    if n == 4:
+                        heuristic[new_state] = min([abs(new_pos[0] - new_objs[i][0])
+                                                    + abs(new_pos[1] - new_objs[i][1])
+                                                    for i in range(4)]) + h + w + h
+                    elif n == 3:
+                        # Exclude the middle corner
+                        end_corners = []
+                        unique_x = new_objs[0][0] ^ new_objs[1][0] ^ new_objs[2][0]
+                        unique_y = new_objs[0][1] ^ new_objs[1][1] ^ new_objs[2][1]
+                        for i in range(3):
+                            if new_objs[i][0] == unique_x or new_objs[i][1] == unique_y:
+                                end_corners.append(new_objs[i])
+                        heuristic[new_state] = min([abs(new_pos[0] - end_corners[i][0])
+                                                    + abs(new_pos[1] - end_corners[i][1])
+                                                    for i in range(2)]) + h + w
+                    elif n == 2:
+                        heuristic[new_state] = min([abs(new_pos[0] - new_objs[i][0])
+                                                    + abs(new_pos[1] - new_objs[i][1])
+                                                    for i in range(2)]) + w
+                    else:
+                        heuristic[new_state] = abs(new_pos[0] - new_objs[0][0]) + abs(new_pos[1] - new_objs[0][1])
+                    heappush(frontier, (dist[new_state] + heuristic[new_state], new_state))
+                    parent[new_state] = cur_state
+                # can update node in frontier if distance is shorter
+                elif dist_tmp < dist[new_state]:
+                    dist[new_state] = dist_tmp
+                    heappush(frontier, (dist[new_state] + heuristic[new_state], new_state))
+                    parent[new_state] = cur_state
     while cur_state != init_state:
         path.append(cur_state[0])
         cur_state = parent[cur_state]
