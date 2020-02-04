@@ -42,36 +42,40 @@ def bfs(maze):
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
     # Single or multiple objectives
+    # state = (position, obj_list)
+    parent = dict()
+    path = []
+    pos = maze.getStart()
     objs = maze.getObjectives()
-    start = maze.getStart()
-    cur = start
-    path = [start]
-    for j in range(len(objs)):
-        frontier = deque()
-        frontier.append(start)
-        visited = set()
-        visited.add(start)
-        tmp_path = []
-        parent = dict()
-        while len(frontier) > 0:
-            cur = frontier.popleft()
-            if cur in objs:
-                objs.remove(cur)
+    init_state = (pos, tuple(objs))
+    cur_state = init_state
+    frontier = deque()
+    frontier.append(init_state)
+    # visited nodes include frontier
+    visited = set()
+    visited.add(cur_state)
+    while len(frontier) > 0:
+        cur_state = frontier.popleft()
+        pos = cur_state[0]
+        objs_tuple = cur_state[1]
+        objs = list(objs_tuple)
+        new_objs = objs
+        if pos in new_objs:
+            new_objs.remove(pos)
+            if len(new_objs) == 0:
                 break
-            neighbors = maze.getNeighbors(cur[0], cur[1])
-            for i in neighbors:
-                if i not in visited:
-                    parent[i] = cur
-                    frontier.append(i)
-                    visited.add(i)
-        tmp_start = cur
-        while cur != start:
-            tmp_path.append(cur)
-            cur = parent[cur]
-        tmp_path.reverse()
-        for p in tmp_path:
-            path.append(p)
-        start = tmp_start
+        neighbors = maze.getNeighbors(pos[0], pos[1])
+        for new_pos in neighbors:
+            new_state = (new_pos, tuple(new_objs))
+            if new_state not in visited:
+                parent[new_state] = cur_state
+                frontier.append(new_state)
+                visited.add(new_state)
+    while cur_state != init_state:
+        path.append(cur_state[0])
+        cur_state = parent[cur_state]
+    path.append(cur_state[0])
+    path.reverse()
     return path
 
 
@@ -95,20 +99,20 @@ def astar(maze):
     h[cur] = abs(cur[0] - target[0]) + abs(cur[1] - target[1])
     frontier = []
     heappush(frontier, (g[cur] + h[cur], cur))
-    visited = set()
+    explored = set()
     while len(frontier) > 0:
         f, cur = heappop(frontier)
         # if node is previously expanded, current cost must >= previous cost at this node
-        if cur in visited:
+        if cur in explored:
             continue
-        # only treat expanded nodes (not nodes in heap) as visited, since nodes in heap can be updated
-        visited.add(cur)
+        # only treat expanded nodes (not nodes in frontier) as visited, since nodes in frontier can be updated
+        explored.add(cur)
         if maze.isObjective(cur[0], cur[1]):
             break
         neighbors = maze.getNeighbors(cur[0], cur[1])
         for i in neighbors:
             # pushing expanded node to heap can lead to infinite loop
-            if i not in visited:
+            if i not in explored:
                 g_tmp = g[cur] + 1
                 if i not in [x[1] for x in frontier]:
                     g[i] = g_tmp
@@ -169,7 +173,7 @@ def astar_corner(maze):
         # if node is previously expanded, current cost must >= previous cost at this node
         if cur_state in explored:
             continue
-        # only treat expanded nodes (not nodes in heap) as visited, since nodes in heap can be updated
+        # only treat expanded nodes (not nodes in frontier) as visited, since nodes in frontier can be updated
         explored.add(cur_state)
         pos = cur_state[0]
         objs_tuple = cur_state[1]
