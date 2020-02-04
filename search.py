@@ -47,7 +47,8 @@ def bfs(maze):
     cur = start
     frontier = deque()
     frontier.append(cur)
-    visited = set(cur)
+    visited = set()
+    visited.add(cur)
     while len(frontier) > 0:
         cur = frontier.popleft()
         if maze.isObjective(cur[0], cur[1]):
@@ -84,7 +85,8 @@ def astar(maze):
     h = abs(cur[0] - target[0]) + abs(cur[1] - target[1])
     frontier = []
     heappush(frontier, (g[cur] + h, cur))
-    visited = set(cur)
+    visited = set()
+    visited.add(cur)
     while len(frontier) > 0:
         f, cur = heappop(frontier)
         if maze.isObjective(cur[0], cur[1]):
@@ -112,9 +114,80 @@ def astar_corner(maze):
     @param maze: The maze to execute the search on.
         
     @return path: a list of tuples containing the coordinates of each state in the computed path
-        """
-    # TODO: Write your code here
-    return []
+    """
+    # state = (position, obj_list)
+    # note: all dist are manhattan distance
+    # suppose: w >= h
+    # if len(obj_list) == 4: heuristic = dist_to_nearest_corner + h + w + h
+    # if len(obj_list) == 3: heuristic = dist_to_nearest_corner_except_the_middle_one + h + w
+    # if len(obj_list) == 2: heuristic = dist_to_nearest_corner + w
+    # if len(obj_list) == 1: single point a*
+    parent = dict()
+    path = []
+    h, w = maze.getDimensions()
+    # Exclude walls
+    h -= 3
+    w -= 3
+    if h > w:
+        tmp = h
+        h = w
+        w = tmp
+    pos = maze.getStart()
+    objs = maze.getObjectives()
+    init_state = (pos, tuple(objs))
+    cur_state = init_state
+    dist = dict()
+    dist[init_state] = 0
+    heuristic = min([abs(pos[0] - objs[i][0]) + abs(pos[1] - objs[i][1]) for i in range(4)]) + h + w + h
+    frontier = []
+    heappush(frontier, (heuristic, init_state))
+    explored = set()
+    explored.add(init_state)
+    while len(frontier) > 0:
+        f, cur_state = heappop(frontier)
+        pos = cur_state[0]
+        objs_tuple = cur_state[1]
+        objs = list(objs_tuple)
+        new_objs = objs
+        if pos in new_objs:
+            new_objs.remove(pos)
+            if len(new_objs) == 0:
+                break
+        neighbors = maze.getNeighbors(pos[0], pos[1])
+        for new_pos in neighbors:
+            new_state = (new_pos, tuple(new_objs))
+            if new_state not in explored or dist[cur_state] + 1 < dist[new_state]:
+                parent[new_state] = cur_state
+                dist[new_state] = dist[cur_state] + 1
+                n = len(new_objs)
+                if n == 4:
+                    heuristic = dist[new_state] + min([abs(new_pos[0] - new_objs[i][0])
+                                                       + abs(new_pos[1] - new_objs[i][1])
+                                                       for i in range(4)]) + h + w + h
+                elif n == 3:
+                    # Exclude the middle corner
+                    end_corners = []
+                    unique_x = new_objs[0][0] ^ new_objs[1][0] ^ new_objs[2][0]
+                    unique_y = new_objs[0][1] ^ new_objs[1][1] ^ new_objs[2][1]
+                    for i in range(3):
+                        if new_objs[i][0] == unique_x or new_objs[i][1] == unique_y:
+                            end_corners.append(new_objs[i])
+                    heuristic = dist[new_state] + min([abs(new_pos[0] - end_corners[i][0])
+                                                       + abs(new_pos[1] - end_corners[i][1])
+                                                       for i in range(2)]) + h + w
+                elif n == 2:
+                    heuristic = dist[new_state] + min([abs(new_pos[0] - new_objs[i][0]) + abs(new_pos[1] - new_objs[i][1])
+                                                       for i in range(2)]) + w
+                else:
+                    heuristic = dist[new_state] + abs(new_pos[0] - new_objs[0][0]) + abs(new_pos[1] - new_objs[0][1])
+                heappush(frontier, (heuristic, new_state))
+                explored.add(new_state)
+    while cur_state != init_state:
+        path.append(cur_state[0])
+        cur_state = parent[cur_state]
+    path.append(cur_state[0])
+    path.reverse()
+    return path
 
 
 def astar_multi(maze):
