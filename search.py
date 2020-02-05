@@ -16,6 +16,7 @@ files and classes when code is run, so be careful to not modify anything else.
 from collections import deque
 from heapq import *
 from operator import itemgetter
+from itertools import count
 
 
 # Search should return the path.
@@ -160,6 +161,8 @@ def astar_corner(maze):
         w = tmp
     pos = maze.getStart()
     objs = maze.getObjectives()
+    objs_tmp = sorted(objs, key=itemgetter(1))
+    objs = sorted(objs_tmp, key=itemgetter(0))
     init_state = (pos, tuple(objs))
     cur_state = init_state
     dist = dict()
@@ -167,10 +170,13 @@ def astar_corner(maze):
     heuristic = dict()
     heuristic[init_state] = min([abs(pos[0] - objs[i][0]) + abs(pos[1] - objs[i][1]) for i in range(4)]) + h + w + h
     frontier = []
-    heappush(frontier, (heuristic, init_state))
+    # tie breaking rule 1: states with fewer objectives have higher priority
+    # tie breaking rule 2: newer states have higher priority
+    counter = count()
+    heappush(frontier, (heuristic, len(init_state[1]), -next(counter), init_state))
     explored = set()
     while len(frontier) > 0:
-        f, cur_state = heappop(frontier)
+        f, _, _, cur_state = heappop(frontier)
         # if node is previously expanded, current cost must >= previous cost at this node
         if cur_state in explored:
             continue
@@ -184,13 +190,15 @@ def astar_corner(maze):
             new_objs.remove(pos)
             if len(new_objs) == 0:
                 break
+        objs_tmp = sorted(objs, key=itemgetter(1))
+        new_objs = sorted(objs_tmp, key=itemgetter(0))
         neighbors = maze.getNeighbors(pos[0], pos[1])
         for new_pos in neighbors:
             new_state = (new_pos, tuple(new_objs))
             # pushing expanded node to heap can lead to infinite loop
             if new_state not in explored:
                 dist_tmp = dist[cur_state] + 1
-                if new_state not in [x[1] for x in frontier]:
+                if new_state not in [x[3] for x in frontier]:
                     dist[new_state] = dist_tmp
                     n = len(new_objs)
                     if n == 4:
@@ -214,12 +222,12 @@ def astar_corner(maze):
                                                     for i in range(2)]) + w
                     else:
                         heuristic[new_state] = abs(new_pos[0] - new_objs[0][0]) + abs(new_pos[1] - new_objs[0][1])
-                    heappush(frontier, (dist[new_state] + heuristic[new_state], new_state))
+                    heappush(frontier, (dist[new_state] + heuristic[new_state], len(new_state[1]), -next(counter), new_state))
                     parent[new_state] = cur_state
                 # can update node in frontier if distance is shorter
                 elif dist_tmp < dist[new_state]:
                     dist[new_state] = dist_tmp
-                    heappush(frontier, (dist[new_state] + heuristic[new_state], new_state))
+                    heappush(frontier, (dist[new_state] + heuristic[new_state], len(new_state[1]), -next(counter), new_state))
                     parent[new_state] = cur_state
     while cur_state != init_state:
         path.append(cur_state[0])
@@ -249,6 +257,8 @@ def astar_multi(maze):
     path = []
     pos = maze.getStart()
     objs = maze.getObjectives()
+    objs_tmp = sorted(objs, key=itemgetter(1))
+    objs = sorted(objs_tmp, key=itemgetter(0))
     init_state = (pos, tuple(objs))
     cur_state = init_state
     dist = dict()
@@ -287,18 +297,18 @@ def astar_multi(maze):
 
     # cache MST to boost efficiency
     mst = dict()
-    # sort the objective list to avoid repeated computation of the same MST
-    objs_tmp = sorted(objs, key=itemgetter(1))
-    objs_sorted = sorted(objs_tmp, key=itemgetter(0))
-    mst[tuple(objs_sorted)] = compute_mst(objs_sorted)
+    mst[tuple(objs)] = compute_mst(objs)
     heuristic = dict()
     heuristic[init_state] = min([abs(pos[0] - objs[i][0]) + abs(pos[1] - objs[i][1])
-                                 for i in range(4)]) + mst[tuple(objs_sorted)]
+                                 for i in range(4)]) + mst[tuple(objs)]
     frontier = []
-    heappush(frontier, (heuristic, init_state))
+    # tie breaking rule 1: states with fewer objectives have higher priority
+    # tie breaking rule 2: newer states have higher priority
+    counter = count()
+    heappush(frontier, (heuristic, len(init_state[1]), -next(counter), init_state))
     explored = set()
     while len(frontier) > 0:
-        f, cur_state = heappop(frontier)
+        f, _, _, cur_state = heappop(frontier)
         # if node is previously expanded, current cost must >= previous cost at this node
         if cur_state in explored:
             continue
@@ -312,26 +322,26 @@ def astar_multi(maze):
             new_objs.remove(pos)
             if len(new_objs) == 0:
                 break
+        objs_tmp = sorted(objs, key=itemgetter(1))
+        new_objs = sorted(objs_tmp, key=itemgetter(0))
         neighbors = maze.getNeighbors(pos[0], pos[1])
         for new_pos in neighbors:
             new_state = (new_pos, tuple(new_objs))
             # pushing expanded node to heap can lead to infinite loop
             if new_state not in explored:
                 dist_tmp = dist[cur_state] + 1
-                if new_state not in [x[1] for x in frontier]:
+                if new_state not in [x[3] for x in frontier]:
                     dist[new_state] = dist_tmp
-                    new_objs_tmp = sorted(new_objs, key=itemgetter(1))
-                    new_objs_sorted = sorted(new_objs_tmp, key=itemgetter(0))
-                    if tuple(new_objs_sorted) not in mst:
-                        mst[tuple(new_objs_sorted)] = compute_mst(new_objs_sorted)
+                    if tuple(new_objs) not in mst:
+                        mst[tuple(new_objs)] = compute_mst(new_objs)
                     heuristic[new_state] = min([abs(new_pos[0] - new_objs[i][0]) + abs(new_pos[1] - new_objs[i][1])
-                                                for i in range(len(objs))]) + mst[tuple(new_objs_sorted)]
-                    heappush(frontier, (dist[new_state] + heuristic[new_state], new_state))
+                                                for i in range(len(objs))]) + mst[tuple(new_objs)]
+                    heappush(frontier, (dist[new_state] + heuristic[new_state], len(new_state[1]), -next(counter), new_state))
                     parent[new_state] = cur_state
                 # can update node in frontier if distance is shorter
                 elif dist_tmp < dist[new_state]:
                     dist[new_state] = dist_tmp
-                    heappush(frontier, (dist[new_state] + heuristic[new_state], new_state))
+                    heappush(frontier, (dist[new_state] + heuristic[new_state], len(new_state[1]), -next(counter), new_state))
                     parent[new_state] = cur_state
     while cur_state != init_state:
         path.append(cur_state[0])
