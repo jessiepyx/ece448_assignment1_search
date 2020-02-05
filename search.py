@@ -173,7 +173,7 @@ def astar_corner(maze):
     # tie breaking rule 1: states with fewer objectives have higher priority
     # tie breaking rule 2: newer states have higher priority
     counter = count()
-    heappush(frontier, (heuristic, len(init_state[1]), -next(counter), init_state))
+    heappush(frontier, (heuristic[init_state], len(init_state[1]), -next(counter), init_state))
     explored = set()
     while len(frontier) > 0:
         f, _, _, cur_state = heappop(frontier)
@@ -305,7 +305,7 @@ def astar_multi(maze):
     # tie breaking rule 1: states with fewer objectives have higher priority
     # tie breaking rule 2: newer states have higher priority
     counter = count()
-    heappush(frontier, (heuristic, len(init_state[1]), -next(counter), init_state))
+    heappush(frontier, (heuristic[init_state], len(init_state[1]), -next(counter), init_state))
     explored = set()
     while len(frontier) > 0:
         f, _, _, cur_state = heappop(frontier)
